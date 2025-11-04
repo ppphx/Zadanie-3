@@ -48,12 +48,3 @@ title('Динамика конкурирующих популяций (x0 = y0 =
 xgrid();
 legend(['Популяция x', 'Популяция y'], 'in_upper_right');
 
-
-// ---- ВЫВОД В КОНСОЛЬ ----
-disp("Начальные условия: x0 = " + string(x0) + ", y0 = " + string(y0));
-disp("Параметры: R1 = " + string(R1) + ", R2 = " + string(R2));
-disp("            k1 = " + string(k1) + ", k2 = " + string(k2));
-disp("            alpha = " + string(alpha) + ", beta = " + string(beta));
-disp("Через " + string(t_end) + " единиц времени:");
-disp("  x = " + string(x($)));
-disp("  y = " + string(y($)));
