@@ -1,0 +1,97 @@
+// ----- ОБЩИЕ ПАРАМЕТРЫ (можно менять для исследования) -----
+R1 = 0.05;   // коэффициент прироста x
+R2 = 0.04;   // коэффициент прироста y
+k1 = 1e6;    // "равновесная" численность x
+k2 = 1e6;    // "равновесная" численность y
+
+// Временной интервал
+t0 = 0;
+t_end = 400;
+dt = 1;
+t = t0:dt:t_end;
+
+// ----- ФУНКЦИЯ МОДЕЛИ (в точности как на фото) -----
+function dXdt = competition(t, X, R1, R2, k1, k2, alpha, beta)
+    x = X(1);
+    y = X(2);
+    dxdt = R1 * x * (k1 - x - alpha * y) / k1;
+    dydt = R2 * y * (k2 - y - beta * x) / k2;
+    dXdt = [dxdt; dydt];
+endfunction
+
+// ----- ПАРАМЕТРЫ ДЛЯ РАЗНЫХ СЦЕНАРИЕВ -----
+scenarios = [
+    // Сценарий 1: x вытесняет y (α мал, β велик)
+    [0.5, 2.0, "x вытесняет y"],
+    
+    // Сценарий 2: y вытесняет x (α велик, β мал)
+    [2.0, 0.5, "y вытесняет x"],
+    
+    // Сценарий 3: сосуществование (α < k1/k2, β < k2/k1)
+    [0.5, 0.5, "Сосуществование"],
+    
+    // Сценарий 4: неустойчивое равновесие (α > k1/k2, β > k2/k1)
+    [2.0, 2.0, "Зависит от начальных условий"]
+];
+
+// Начальные условия для тестирования
+initial_conditions = [
+    1e5, 1e5;   // обе малы
+    9e5, 1e5;   // x >> y
+    1e5, 9e5;   // y >> x
+    5e5, 5e5;   // равные
+];
+
+// ----- ЦИКЛ ПО СЦЕНАРИЯМ -----
+for s = 1:size(scenarios, "r")
+    alpha = scenarios(s, 1);
+    beta  = scenarios(s, 2);
+    title_str = scenarios(s, 3);
+    
+    // Новое окно графика
+    figure(s);
+    clf();
+    
+    colors = ['b-', 'r--', 'g-.', 'm:'];
+    
+    for ic = 1:size(initial_conditions, "r")
+        x0 = initial_conditions(ic, 1);
+        y0 = initial_conditions(ic, 2);
+        X0 = [x0; y0];
+        
+        // Решение ОДУ (обход ограничения Scilab на передачу параметров)
+        // Создаём анонимную функцию через execstr
+        deff('dXdt=model(t,X)',..
+             'dXdt=competition(t,X,'+string(R1)+','+string(R2)+','+..
+             string(k1)+','+string(k2)+','+string(alpha)+','+string(beta)+')');
+        
+        X = ode(X0, t0, t, model);
+        x = X(1, :);
+        y = X(2, :);
+        
+        // Построение x(t)
+        plot(t, x, colors(ic)(1:2), 'LineWidth', 1.5);
+        // Построение y(t) тем же стилем, но другая линия
+        plot(t, y, colors(ic)(1) + '--', 'LineWidth', 1.5);
+    end
+    
+    xlabel('Время');
+    ylabel('Численность');
+    title(title_str);
+    xgrid();
+    
+    // Легенда
+    leg_str = [];
+    for ic = 1:size(initial_conditions, "r")
+        leg_str($+1) = "x: IC" + string(ic);
+        leg_str($+1) = "y: IC" + string(ic);
+    end
+    legend(leg_str, 'in_upper_right');
+end
+
+// ----- ВЫВОД УСЛОВИЙ СОСУЩЕСТВОВАНИЯ -----
+printf("\nУсловия для сосуществования:\n");
+printf("  alpha < k1/k2 = %g\n", k1/k2);
+printf("  beta  < k2/k1 = %g\n", k2/k1);
+printf("\nВ сценарии 3: alpha = beta = %g → сосуществование возможно.\n", 0.5);
+printf("В сценарии 4: alpha = beta = %g → выживает тот, кто стартует с большим преимуществом.\n", 2.0);
