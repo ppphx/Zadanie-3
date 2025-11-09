@@ -1,90 +1,69 @@
-// Общие параметры
-R1 = 0.05;
-R2 = 0.04;
-k1 = 1e6;
-k2 = 1e6;
+R1 = 0.05;  R2 = 0.04;
+k1 = 1e6;   k2 = 1e6;
+t = 0:1:400;
 
-t0 = 0;
-t_end = 400;
-dt = 1;
-t = t0:dt:t_end;
-
-// Параметры сценариев: alpha и beta
-alpha_vals = [0.5, 2.0, 0.5, 2.0];
-beta_vals  = [2.0, 0.5, 0.5, 2.0];
-
-// Заголовки сценариев (отдельный вектор строк)
-titles = [
-    "x вытесняет y";
-    "y вытесняет x";
-    "Сосуществование";
-    "Зависит от начальных условий"
-];
-
-// Начальные условия
-IC = [
-    1e5, 1e5;   // IC1
-    9e5, 1e5;   // IC2
-    1e5, 9e5;   // IC3
-    5e5, 5e5    // IC4
-];
-
-// Основная функция модели
-function dXdt = model_competition(t, X, R1, R2, k1, k2, alpha, beta)
-    x = X(1);
-    y = X(2);
+function dXdt = model(t, X, R1, R2, k1, k2, alpha, beta)
+    x = X(1); y = X(2);
     dxdt = R1 * x * (k1 - x - alpha * y) / k1;
     dydt = R2 * y * (k2 - y - beta * x) / k2;
     dXdt = [dxdt; dydt];
 endfunction
 
-// Цикл по сценариям
-for s = 1:length(alpha_vals)
+// Параметры сценариев
+alpha_vals = [0.5, 2.0, 0.5, 2.0];
+beta_vals  = [2.0, 0.5, 0.5, 2.0];
+
+titles = [
+    "Сценарий 1: x вытесняет y";
+    "Сценарий 2: y вытесняет x";
+    "Сценарий 3: Сосуществование";
+    "Сценарий 4: Исход зависит от старта"
+];
+
+// Одно начальное условие на сценарий
+IC = [
+    5e5, 5e5;     // С1
+    5e5, 5e5;     // С2
+    5e5, 5e5;     // С3
+    5.5e5, 4.5e5  // С4: x чуть больше
+];
+
+for s = 1:4
     alpha = alpha_vals(s);
     beta  = beta_vals(s);
-    title_str = titles(s);
+    x0 = IC(s, 1);
+    y0 = IC(s, 2);
+    X0 = [x0; y0];
     
-    figure(s);
-    clf();
+    function dXdt = temp(t, X)
+        dXdt = model(t, X, R1, R2, k1, k2, alpha, beta);
+    endfunction
     
-    // Цвета и стили
-    styles_x = ['b-', 'r-', 'g-', 'm-'];
-    styles_y = ['b--', 'r--', 'g--', 'm--'];
+    X = ode(X0, 0, t, temp);
+    x = X(1,:);
+    y = X(2,:);
     
-    for ic = 1:size(IC, 1)
-        x0 = IC(ic, 1);
-        y0 = IC(ic, 2);
-        X0 = [x0; y0];
-        
-        // Создаём временную функцию с фиксированными параметрами
-        function dXdt = temp_model(t, X)
-            dXdt = model_competition(t, X, R1, R2, k1, k2, alpha, beta);
-        endfunction
-        
-        // Решение
-        X = ode(X0, t0, t, temp_model);
-        x = X(1, :);
-        y = X(2, :);
-        
-        plot(t, x, styles_x(ic), 'LineWidth', 1.5);
-        plot(t, y, styles_y(ic), 'LineWidth', 1.5);
-    end
-    
+    // временная динамика
+    scf(2*s - 1); clf();
+    plot(t, x, 'b-', 'LineWidth', 2);
+    plot(t, y, 'r--', 'LineWidth', 2);
     xlabel('Время');
     ylabel('Численность');
-    title(title_str);
+    title(titles(s) + " — динамика во времени");
+    xgrid();
+    legend(['Популяция x', 'Популяция y'], 'in_upper_right');
+    
+    //  фазовый портрет
+    scf(2*s); clf();
+    plot(x, y, 'g-', 'LineWidth', 2);
+    xlabel('Численность x (популяция 1)');
+    ylabel('Численность y (популяция 2)');
+    title(titles(s) + " — фазовый портрет");
     xgrid();
     
-    // Легенда
-    leg = [];
-    for ic = 1:size(IC, 1)
-        leg($+1) = "x, IC" + string(ic);
-        leg($+1) = "y, IC" + string(ic);
-    end
-    legend(leg, 'in_upper_right');
+    // Отметим начальную точку
+    plot(x(1), y(1), 'bo', 'MarkerSize', 6, 'MarkerFaceColor', 'b');
+    // Отметим конечную точку
+    plot(x($), y($), 'ro', 'MarkerSize', 6, 'MarkerFaceColor', 'r');
+    legend(['Траектория', 'Начало', 'Конец'], 'in_upper_right');
 end
-
-// Вывод условий в консоль
-mprintf("\nУсловия сосуществования:\n");
-mprintf("  alpha < k1/k2 = %.2f\n", k1/k2);
-mprintf("  beta  < k2/k1 = %.2f\n", k2/k1);
